@@ -1,25 +1,25 @@
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-const dragging = false;
-const isShape = false;
+let polygons = [],
+  polygonTouch = false,
+  startX = null,
+  startY = null;
+
 let isDrawing = true;
 
-var cw = (canvas.width = window.innerWidth - 100);
-var ch = (canvas.height = window.innerHeight - 100);
+let cw = (canvas.width = window.innerWidth - 100);
+let ch = (canvas.height = window.innerHeight - 300);
 
-points = [];
+let points = [];
+let rectss = [];
+let rects = [];
 
-var shape = {};
-
-var delta = new Object();
-
-canvas.addEventListener("click", e => {
+canvas.addEventListener('click', e => {
   let point = {
     x: e.clientX,
     y: e.clientY,
-    radius: 5,
-    color: "rgb(0,255,0)"
+    radius: 5
   };
 
   isDrawing ? points.push(point) : ctx.closePath();
@@ -27,71 +27,215 @@ canvas.addEventListener("click", e => {
   updateCircles();
 });
 
-function updateCircles() {
-  points.forEach(circle => {
+const pointInPolygon = (x, y, points) => {
+  let i,
+    j = points.length - 1,
+    touch = false;
+
+  for (i = 0; i < points.length; i++) {
+    const pxi = points[i].x,
+      pxj = points[j].x,
+      pyi = points[i].y,
+      pyj = points[j].y;
+
+    if (
+      ((pyi < y && pyj >= y) || (pyj < y && pyi >= y)) &&
+      (pxi <= x || pxj <= x)
+    ) {
+      if (pxi + ((y - pyi) / (pyj - pyi)) * (pxj - pxi) < x) {
+        touch = !touch;
+      }
+    }
+    j = i;
+  }
+
+  return touch;
+};
+
+const changeColor = () => {
+  let letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
+const updateCircles = () => {
+  points.forEach(p => {
+    var i = 0;
+
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(circle.x, circle.y, circle.radius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = circle.color;
+    ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = changeColor();
     ctx.fill();
     ctx.closePath();
+    rects.push({
+      x: p.x,
+      y: p.y,
+      w: 10,
+      h: 10,
+      index: i + 1
+    });
   });
-}
+  rectss.push(rects);
+};
 
-function isOnFirst(e) {
-  if (e && points.length > 0) {
-    if (e.x - points[0].x <= 10) {
-      drawShape();
-    }
-  }
-}
-
-function oMousePos(canvas, evt) {
-  var rect = canvas.getBoundingClientRect();
-  return {
-    x: Math.round(evt.clientX - rect.left),
-    y: Math.round(evt.clientY - rect.top)
-  };
-}
-
-function clearBoard() {
+const clearBoard = () => {
   points = [];
-  updateCircles();
-}
+  polygons = [];
+  rects = [];
+  ctx.clearRect(0, 0, cw, ch);
+};
 
-function drawShape() {
+const rectForEach = (rects, x, y, down) => {
+  rects.forEach((rect, i) => {
+    if (down) {
+      if (
+        x >= rect.x &&
+        x <= rect.x + rect.w &&
+        y >= rect.y &&
+        y <= rect.y + rect.h
+      ) {
+        rect.down = true;
+      }
+    } else {
+      if (
+        x >= rect.x &&
+        x <= rect.x + rect.w &&
+        y >= rect.y &&
+        y <= rect.y + rect.h &&
+        rect.down
+      ) {
+        rect.touch = true;
+      }
+    }
+  });
+
+  return rects;
+};
+
+const drawShape = drawingPoints => {
+  if (drawingPoints) {
+    ctx.clearRect(0, 0, cw, ch);
+  }
+
   ctx.beginPath();
   points.forEach(p => {
     ctx.lineTo(p.x, p.y);
   });
-  ctx.fillStyle = "rgb(200,0,0)";
   ctx.fill();
   ctx.closePath();
 
-  shape.x = points[0];
-  shape.y = points[points.length];
+  updateCircles();
+  rectss.push(rects);
 
-
-
+  polygons.push({
+    points: points,
+    rects: points,
+    polygonTouch: false
+  });
   isDrawing = false;
-}
+};
 
-canvas.addEventListener("mousedown", function(e) {
+canvas.addEventListener('mousedown', e => {
+  let { clientX, clientY } = e;
 
-  canvas.getBoundingClientRect()
-  isDragging = true;
-  isOnFirst(e);
-  var mousePos = oMousePos(canvas, e);
-  console.log(mousePos);
+  const x = clientX - 4,
+    y = clientY - 4;
 
-  if (ctx.isPointInPath(mousePos.x, mousePos.y)) {
+  polygons.forEach((polygon, i) => {
+    polygons[polygons.length - 1].rects = rectForEach(
+      polygons[polygons.length - 1].rects,
+      x,
+      y,
+      true
+    );
+    if (pointInPolygon(x, y, polygons[i].points)) {
+      const p = polygons[i];
+      polygons.splice(i, 1);
 
-    points.forEach(point => {
-        if(point.x - mousePos.x <5){
-          console.log("Yes");
-        };
-    });
+      polygons.push(p);
+      polygons[polygons.length - 1].polygonTouch = true;
+      startX = x;
+      startY = y;
+    }
+  });
+});
 
+canvas.addEventListener('mousemove', e => {
+  let { clientX, clientY } = e;
+  const x = clientX - 4,
+    y = clientY - 4;
 
+  polygons.forEach((polygon, i) => {
+    polygons[i].rects = rectForEach(polygons[i].rects, x, y, false);
 
-  }
+    const rect = polygons[i].rects.filter(r => r.touch)[0];
+    if (rect) {
+      if (rect.index === 0) {
+        polygons[i].points[0].x = x;
+        polygons[i].points[0].y = y;
+        polygons[i].points[polygons[i].points.length - 1].x = x;
+        polygons[i].points[polygons[i].points.length - 1].y = y;
+      } else {
+        polygons[i].points[rect.index].x = x;
+        polygons[i].points[rect.index].y = y;
+      }
+
+      drawShape(polygons.map(({ points }) => points));
+    }
+    if (polygons[i].polygonTouch && !rect) {
+      polygons[i].points.forEach(point => {
+        point.x += x - startX;
+        point.y += y - startY;
+      });
+      drawShape(polygons.map(({ points }) => points));
+      startX = x;
+      startY = y;
+    }
+  });
+});
+
+canvas.addEventListener('mouseout', e => {
+  rects.forEach(rect => {});
+});
+canvas.addEventListener('mouseup', e => {
+  let { clientX, clientY } = e;
+
+  const x = clientX - 4,
+    y = clientY - 4;
+
+  polygons.forEach((polygon, i) => {
+    const rect = polygons[i].rects.filter(r => r.touch)[0];
+
+    if (polygons[i].polygonTouch && !rect) {
+      polygons[i].points.forEach(point => {
+        point.x += x - startX;
+        point.y += y - startY;
+      });
+
+      drawShape(rect);
+    }
+
+    polygons[i].polygonTouch = false;
+
+    if (rect) {
+      polygons[i].rects[rect.index].touch = false;
+      polygons[i].rects[rect.index].down = false;
+
+      if (rect.index === 0) {
+        polygons[i].points[0].x = x;
+        polygons[i].points[0].y = y;
+        polygons[i].points[polygons[i].points.length - 1].x = x;
+        polygons[i].points[polygons[i].points.length - 1].y = y;
+      } else {
+        polygons[i].points[rect.index].x = x;
+        polygons[i].points[rect.index].y = y;
+      }
+
+      polygons[i].rects = drawShape(polygons.map(({ points }) => points))[i];
+    }
+  });
 });

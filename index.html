@@ -3,14 +3,33 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Page Title</title>
+    <title>Polygon-Sketch-Tool by Camilo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" type="text/css" media="screen" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <canvas id="canvas" width="400" height="400"></canvas>
-    <script src="main.js"></script>
-    <button onclick="clearBoard()">Clear</button>
-    <button onclick="drawShape()">Draw</button>
+    <div class="canvas-container">
+      <canvas id="canvas" width="400" height="400"></canvas>
+    </div>
+    <script src="main.js" defer></script>
+<div class="buttons">
+    <button class="button" onclick="drawShape()">✏️Sketch!</button>
+  </div>
+
+  <div class="instructions">
+    <h2>Instructions</h2>
+    <ul>
+      <li>
+        Click to set the vertices of the polygon 📐.
+      </li>
+      <li>
+        Given the above when you finished click on ✏️Sketch!
+      </li>
+      <li>
+        You can drag and drop the polygon in the board  🖼 
+      </li>
+    </ul>
+  </div>
+  </div>
   </body>
 </html>
